@@ -198,17 +198,18 @@ let pantry = [
   {id:'bpea',    name:'Butterfly pea (dried)',qty:400,unit:'g',  price:475},
   {id:'lemon',   name:'Lemon',              qty:1,    unit:'pc', price:25},
   {id:'cup',     name:'Cup + lid 16oz',     qty:1,    unit:'pc', price:6},
+  {id:'straw',   name:'Straw',              qty:1,    unit:'pc', price:0.65},
 ];
 
 let recipes = [
   {id:'pm-w', name:'Peach Mango', base:'Water base', grad:['#FFAA33','#FF7A59'], price:125, items:[
-    {ing:'puree',amt:45},{ing:'psyrup',amt:30},{ing:'mcon',amt:40},{ing:'water',amt:150},{ing:'corn',amt:10},{ing:'ice',amt:50},{ing:'cup',amt:1}]},
+    {ing:'puree',amt:45},{ing:'psyrup',amt:30},{ing:'mcon',amt:40},{ing:'water',amt:150},{ing:'corn',amt:10},{ing:'ice',amt:50},{ing:'cup',amt:1},{ing:'straw',amt:1}]},
   {id:'pm-s', name:'Peach Mango', base:'Soda base', grad:['#FFC24D','#FF6B4A'], price:125, items:[
-    {ing:'puree',amt:45},{ing:'psyrup',amt:30},{ing:'mcon',amt:40},{ing:'sprite',amt:80},{ing:'ice',amt:50},{ing:'cup',amt:1}]},
+    {ing:'puree',amt:45},{ing:'psyrup',amt:30},{ing:'mcon',amt:40},{ing:'sprite',amt:80},{ing:'ice',amt:50},{ing:'cup',amt:1},{ing:'straw',amt:1}]},
   {id:'bp-w', name:'Tropical Butterfly Pea', base:'Water base', grad:['#7A6CF0','#372BA6'], price:100, items:[
-    {ing:'passion',amt:60},{ing:'bpea',amt:2},{ing:'corn',amt:15},{ing:'lemon',amt:0.125},{ing:'water',amt:150},{ing:'ice',amt:50},{ing:'cup',amt:1}]},
+    {ing:'passion',amt:60},{ing:'bpea',amt:2},{ing:'corn',amt:15},{ing:'lemon',amt:0.125},{ing:'water',amt:150},{ing:'ice',amt:50},{ing:'cup',amt:1},{ing:'straw',amt:1}]},
   {id:'bp-s', name:'Tropical Butterfly Pea', base:'Soda base', grad:['#8F7BFF','#4F46C8'], price:100, items:[
-    {ing:'passion',amt:60},{ing:'bpea',amt:2},{ing:'lemon',amt:0.125},{ing:'sprite',amt:80},{ing:'ice',amt:50},{ing:'cup',amt:1}]},
+    {ing:'passion',amt:60},{ing:'bpea',amt:2},{ing:'lemon',amt:0.125},{ing:'sprite',amt:80},{ing:'ice',amt:50},{ing:'cup',amt:1},{ing:'straw',amt:1}]},
 ];
 
 const GRADS=[['#FFAA33','#FF7A59'],['#7A6CF0','#372BA6'],['#34C29A','#0E7B5E'],['#FF6BA8','#C4256F']];
