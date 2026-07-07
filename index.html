@@ -6,6 +6,8 @@
 <title>Sari-Sip · Drink Costing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{
   --paper:#F1F2FA;
@@ -141,6 +143,27 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;margin-top:20px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;font-size:13px;font-weight:500;padding:10px 18px;border-radius:999px;transition:transform .3s;z-index:50;pointer-events:none}
 .toast.show{transform:translateX(-50%) translateY(0)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- print sheet ---------- */
+#printSheet{display:none}
+@media print{
+  body>*:not(#printSheet){display:none!important}
+  #printSheet{display:block}
+  body{background:#fff!important;padding:0;max-width:100%;font-size:12px;color:#111}
+  #printSheet h1{font-size:22px;margin:0 0 2px;color:#111}
+  #printSheet .pdate{font-size:11px;color:#555;margin-bottom:14px}
+  #printSheet h2{font-size:14px;margin:16px 0 6px;color:#111;border-bottom:2px solid #111;padding-bottom:3px}
+  #printSheet table{width:100%;border-collapse:collapse;margin-bottom:6px}
+  #printSheet th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#555;border-bottom:1px solid #999;padding:3px 4px}
+  #printSheet th.r, #printSheet td.r{text-align:right}
+  #printSheet td{padding:3px 4px;border-bottom:1px solid #ddd}
+  #printSheet tr.total td{border-top:1.5px solid #111;border-bottom:none;font-weight:700}
+  #printSheet .pmeta{font-size:11px;color:#333;margin:2px 0 4px}
+  #printSheet .drink{break-inside:avoid;margin-bottom:12px}
+  #printSheet .ptag{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#555;font-weight:600}
+  #printSheet .summary td{font-weight:600}
+}
+
 @media(min-width:560px){
   h1{font-size:40px}
   .recipes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -178,6 +201,12 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;margin-top:20px}
   <button onclick="loadData()">Load backup</button>
   <button class="primary" onclick="addRecipe()">+ New drink</button>
 </div>
+<div class="actions" style="margin-top:8px">
+  <button onclick="doPrint()">🖨 Print</button>
+  <button onclick="savePDF()">⬇ Save as PDF</button>
+</div>
+
+<div id="printSheet"></div>
 
 <footer>Selling price ÷ margin math: price = cost ÷ (1 − margin). Data lives in this session — use Save backup to download it as a file.</footer>
 <div class="toast" id="toast"></div>
@@ -366,7 +395,106 @@ function toast(msg){
   const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
   clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2400);
 }
+// ---------- print & PDF ----------
+function reportDate(){
+  return new Date().toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'});
+}
+function savePDF(){
+  try{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:'mm',format:'a4'});
+    const php = n => 'Php '+Number(n).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+    let y = 16;
+    doc.setFont('helvetica','bold'); doc.setFontSize(18);
+    doc.text('Beverage Costing', 14, y); y+=6;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(110);
+    doc.text('Generated '+reportDate(), 14, y); y+=6;
+    doc.setTextColor(0);
+
+    // pantry table
+    doc.setFont('helvetica','bold'); doc.setFontSize(12);
+    doc.text('Pantry — bulk prices', 14, y+2);
+    doc.autoTable({
+      startY: y+4,
+      head:[['Ingredient','Bulk qty','Bulk price','Unit cost']],
+      body: pantry.map(p=>[p.name, p.qty+' '+p.unit, php(p.price), unitCost(p).toFixed(unitCost(p)<0.1?4:2)+'/'+p.unit]),
+      styles:{fontSize:8.5,cellPadding:1.6},
+      headStyles:{fillColor:[79,70,200],fontSize:8},
+      columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'}},
+      margin:{left:14,right:14}
+    });
+    y = doc.lastAutoTable.finalY + 8;
+
+    recipes.forEach(r=>{
+      const cost=recipeCost(r), m=r.price>0?(r.price-cost)/r.price:0;
+      const blockH = 14 + r.items.length*5 + 14;
+      if(y + blockH > 280){ doc.addPage(); y = 16; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(12);
+      doc.text(r.name+' — '+r.base+' (16 oz)', 14, y+2);
+      doc.autoTable({
+        startY: y+4,
+        head:[['Ingredient','Amount','Cost']],
+        body: r.items.map(it=>{
+          const p=ing(it.ing);
+          return [p?p.name:'?', it.amt+' '+(p?p.unit:''), php(rowCost(it))];
+        }),
+        styles:{fontSize:8.5,cellPadding:1.6},
+        headStyles:{fillColor:[79,70,200],fontSize:8},
+        columnStyles:{1:{halign:'right'},2:{halign:'right'}},
+        margin:{left:14,right:14}
+      });
+      y = doc.lastAutoTable.finalY + 5;
+      doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+      doc.text('Cost: '+php(cost)+'    Price: '+php(r.price)+'    Margin: '+(m*100).toFixed(1)+'%    Profit: '+php(r.price-cost), 14, y);
+      y += 10;
+    });
+
+    doc.setFontSize(7.5); doc.setTextColor(140);
+    doc.text('Selling price = cost / (1 - margin). Generated with Sari-Sip drink costing.', 14, 290);
+    doc.save('beverage-costing-'+new Date().toISOString().slice(0,10)+'.pdf');
+    toast('PDF downloaded');
+  }catch(e){
+    toast('PDF failed — try the Print button instead');
+    console.error(e);
+  }
+}
+
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+// ---------- print / PDF ----------
+function buildPrintSheet(){
+  const d=new Date().toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'});
+  let html=`<h1>Beverage Costing Sheet</h1><div class="pdate">Sari-Sip · ${d}</div>`;
+
+  html+=`<h2>Summary</h2><table class="summary">
+    <tr><th>Drink</th><th class="r">Cost/cup</th><th class="r">Price</th><th class="r">Profit</th><th class="r">Margin</th></tr>`;
+  recipes.forEach(r=>{
+    const c=recipeCost(r), m=r.price>0?(r.price-c)/r.price*100:0;
+    html+=`<tr><td>${esc(r.name)} — ${esc(r.base)}</td><td class="r">${P(c)}</td><td class="r">${P(r.price,0)}</td><td class="r">${P(r.price-c)}</td><td class="r">${m.toFixed(1)}%</td></tr>`;
+  });
+  html+=`</table>`;
+
+  recipes.forEach(r=>{
+    const c=recipeCost(r), m=r.price>0?(r.price-c)/r.price*100:0;
+    html+=`<div class="drink"><h2>${esc(r.name)} <span class="ptag">— ${esc(r.base)} · 16 oz</span></h2>
+      <table><tr><th>Ingredient</th><th class="r">Amount</th><th class="r">Unit ₱</th><th class="r">Cost ₱</th></tr>`;
+    r.items.forEach(it=>{
+      const p=ing(it.ing); if(!p) return;
+      html+=`<tr><td>${esc(p.name)}</td><td class="r">${it.amt} ${p.unit}</td><td class="r">${unitCost(p).toFixed(unitCost(p)<0.1?4:2)}</td><td class="r">${rowCost(it).toFixed(2)}</td></tr>`;
+    });
+    html+=`<tr class="total"><td colspan="3">Cost per cup</td><td class="r">${P(c)}</td></tr></table>
+      <div class="pmeta">Selling price <b>${P(r.price,0)}</b> · Profit <b>${P(r.price-c)}</b> · Gross margin <b>${m.toFixed(1)}%</b></div></div>`;
+  });
+
+  html+=`<h2>Pantry — bulk prices</h2><table>
+    <tr><th>Ingredient</th><th class="r">Bulk qty</th><th class="r">Bulk price</th><th class="r">₱ per unit</th></tr>`;
+  pantry.forEach(p=>{
+    html+=`<tr><td>${esc(p.name)}</td><td class="r">${p.qty} ${p.unit}</td><td class="r">${P(p.price)}</td><td class="r">${unitCost(p).toFixed(unitCost(p)<0.1?4:2)}</td></tr>`;
+  });
+  html+=`</table>`;
+  document.getElementById('printSheet').innerHTML=html;
+}
+function doPrint(){ buildPrintSheet(); window.print(); }
 
 render();
 </script>
