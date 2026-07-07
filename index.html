@@ -24,34 +24,49 @@
 html{-webkit-text-size-adjust:100%}
 body{
   font-family:'Instrument Sans',system-ui,sans-serif;
-  background:var(--paper);
+  background:linear-gradient(180deg,#E9E9F8 0%,var(--paper) 320px);
   color:var(--ink);
-  padding:20px 14px calc(40px + env(safe-area-inset-bottom));
+  padding:16px 14px calc(40px + env(safe-area-inset-bottom));
   max-width:680px;margin:0 auto;
   font-size:15px;line-height:1.45;
+  min-height:100vh;
 }
+.section-lbl{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:15px;letter-spacing:.01em;margin:6px 4px 10px;color:var(--ink);display:flex;align-items:baseline;gap:8px}
+.section-lbl small{font-family:'Instrument Sans',sans-serif;font-weight:500;font-size:12px;color:var(--muted)}
 h1,h2,h3,.disp{font-family:'Bricolage Grotesque','Instrument Sans',sans-serif}
 .num{font-variant-numeric:tabular-nums}
 
-/* header */
-header{margin:6px 2px 22px}
-.kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--pea);font-weight:600}
-h1{font-size:34px;font-weight:800;line-height:1.05;letter-spacing:-.02em;margin:4px 0 6px}
-h1 .peach-w{color:var(--peach)}
-h1 .pea-w{color:var(--pea)}
-header p{color:var(--muted);font-size:13.5px;max-width:44ch}
+/* hero header — layered like a butterfly pea sunset drink */
+header{
+  position:relative;overflow:hidden;border-radius:24px;
+  background:linear-gradient(170deg,#1E1A4E 0%,#372BA6 34%,#6C55D6 58%,#C46BB4 76%,#FF8E5E 92%,#FFAA33 100%);
+  color:#fff;padding:30px 22px 34px;margin:0 0 18px;
+  box-shadow:0 10px 30px rgba(35,32,72,.22);
+}
+header .bubble{position:absolute;border-radius:50%;background:rgba(255,255,255,.10);pointer-events:none}
+header .b1{width:130px;height:130px;right:-40px;top:-40px}
+header .b2{width:56px;height:56px;right:44px;bottom:22px;background:rgba(255,255,255,.14)}
+header .b3{width:22px;height:22px;right:110px;bottom:66px;background:rgba(255,255,255,.18)}
+header .b4{width:12px;height:12px;left:26px;bottom:30px;background:rgba(255,255,255,.22)}
+.kicker{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.75);font-weight:600}
+h1{font-size:36px;font-weight:800;line-height:1.04;letter-spacing:-.02em;margin:10px 0 10px;position:relative}
+h1 .peach-w{background:linear-gradient(90deg,#FFD489,#FF9E6B);-webkit-background-clip:text;background-clip:text;color:transparent}
+h1 .pea-w{background:linear-gradient(90deg,#C8BEFF,#8FA8FF);-webkit-background-clip:text;background-clip:text;color:transparent}
+h1 .amp{font-weight:400;font-style:italic;color:rgba(255,255,255,.65);font-size:.8em}
+header p{color:rgba(255,255,255,.82);font-size:13.5px;max-width:44ch;position:relative}
+header .rule{width:44px;height:3px;border-radius:2px;background:linear-gradient(90deg,#FFAA33,#8F7BFF);margin:0 0 12px}
 
 /* summary strip */
 .strip{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 14px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .strip::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:12.5px;display:flex;align-items:center;gap:8px;white-space:nowrap}
-.chip .dot{width:9px;height:9px;border-radius:50%}
+.chip{flex:0 0 auto;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:12.5px;display:flex;align-items:center;gap:8px;white-space:nowrap;box-shadow:0 2px 6px rgba(35,32,72,.06)}
+.chip .dot{width:10px;height:10px;border-radius:50%;box-shadow:inset 0 -2px 3px rgba(0,0,0,.15)}
 .chip b{font-weight:600}
 .chip .m{color:var(--muted)}
 .chip .m.bad{color:var(--danger);font-weight:600}
 
 /* cards */
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 14px;margin-bottom:16px;box-shadow:0 1px 2px rgba(35,32,72,.04)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 14px;margin-bottom:16px;box-shadow:0 4px 14px rgba(35,32,72,.06)}
 .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
 .card-head h2{font-size:19px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
 .card-head h2 input{font:inherit;color:inherit;border:none;background:transparent;width:100%;padding:0}
@@ -136,8 +151,10 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;margin-top:20px}
 <body>
 
 <header>
-  <div class="kicker">Beverage costing</div>
-  <h1><span class="peach-w">Peach Mango</span> &amp; <span class="pea-w">Butterfly Pea</span></h1>
+  <span class="bubble b1"></span><span class="bubble b2"></span><span class="bubble b3"></span><span class="bubble b4"></span>
+  <div class="kicker">Beverage costing · 16 oz</div>
+  <h1><span class="peach-w">Peach Mango</span> <span class="amp">&amp;</span><br><span class="pea-w">Butterfly Pea</span></h1>
+  <div class="rule"></div>
   <p>Bulk prices in the pantry drive every per-cup cost. Change a price or an amount and the margins update everywhere.</p>
 </header>
 
@@ -153,15 +170,16 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;margin-top:20px}
   </div>
 </details>
 
+<div class="section-lbl">The menu <small id="menuCount"></small></div>
 <div class="recipes" id="recipes"></div>
 
 <div class="actions">
-  <button onclick="copyData()">Copy backup</button>
+  <button onclick="copyData()">Save backup</button>
   <button onclick="loadData()">Load backup</button>
   <button class="primary" onclick="addRecipe()">+ New drink</button>
 </div>
 
-<footer>Selling price ÷ margin math: price = cost ÷ (1 − margin). Data lives in this session — use Copy backup to save.</footer>
+<footer>Selling price ÷ margin math: price = cost ÷ (1 − margin). Data lives in this session — use Save backup to download it as a file.</footer>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -248,6 +266,7 @@ function addPantry(){
 // ---------- recipes ----------
 function renderRecipes(){
   const el=document.getElementById('recipes');
+  document.getElementById('menuCount').textContent = recipes.length+' drink'+(recipes.length===1?'':'s');
   el.innerHTML = recipes.map((r,ri)=>{
     const cost=recipeCost(r);
     const margin = r.price>0 ? (r.price-cost)/r.price : 0;
@@ -316,17 +335,31 @@ function addRecipe(){
 
 // ---------- backup ----------
 function copyData(){
-  const json=JSON.stringify({pantry,recipes});
-  navigator.clipboard.writeText(json).then(()=>toast('Backup copied — paste it somewhere safe'))
-    .catch(()=>{ prompt('Copy this backup text:',json); });
+  const json=JSON.stringify({pantry,recipes},null,2);
+  const blob=new Blob([json],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const d=new Date().toISOString().slice(0,10);
+  a.download='drink-costing-backup-'+d+'.txt';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast('Backup file downloaded');
 }
 function loadData(){
-  const t=prompt('Paste your backup JSON:');
-  if(!t) return;
-  try{ const d=JSON.parse(t);
-    if(d.pantry&&d.recipes){ pantry=d.pantry; recipes=d.recipes; render(); toast('Backup loaded'); }
-    else throw 0;
-  }catch{ toast('Could not read that backup'); }
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='.txt,.json';
+  inp.onchange=()=>{
+    const f=inp.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{ const d=JSON.parse(r.result);
+        if(d.pantry&&d.recipes){ pantry=d.pantry; recipes=d.recipes; render(); toast('Backup loaded'); }
+        else throw 0;
+      }catch{ toast('Could not read that backup file'); }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
 }
 function toast(msg){
   const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
