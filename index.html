@@ -119,6 +119,17 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .targets button{border:1px solid var(--line);background:#F8F8FD;border-radius:999px;font:inherit;font-size:11.5px;font-weight:600;color:var(--muted);padding:4px 10px;cursor:pointer}
 .targets button:active{border-color:var(--pea);color:var(--pea)}
 
+/* global margin card */
+.gm-card{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.gm-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.gm-lbl{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:16px}
+.gm-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.gm-ctrl{display:flex;align-items:center;gap:4px;font-weight:800;font-size:18px}
+.gm-ctrl input{width:64px;font-size:20px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;text-align:right;background:#F6F6FC;border:1px solid var(--line);border-radius:10px;padding:5px 8px}
+.size-in{width:44px!important;font-weight:700;text-align:right;font-size:12px!important;padding:2px 4px!important}
+.lockbtn{border:none;background:none;font-size:13px;padding:3px 4px;cursor:pointer;opacity:.75;line-height:1}
+.actions button.danger{color:var(--danger);border-color:#F2C7CC}
+
 /* pantry */
 details.pantry{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}
 details.pantry summary{list-style:none;cursor:pointer;padding:15px 14px;display:flex;justify-content:space-between;align-items:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:17px}
@@ -183,6 +194,17 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;margin-top:20px}
 
 <div class="strip" id="strip"></div>
 
+<div class="card gm-card">
+  <div class="gm-row">
+    <div>
+      <div class="gm-lbl">Target gross margin</div>
+      <div class="gm-sub">Sets every drink's price from its cost. Prices stay editable per drink after.</div>
+    </div>
+    <div class="gm-ctrl"><input type="number" id="gmInput" value="60" min="0" max="90" inputmode="numeric"><span>%</span></div>
+  </div>
+  <button class="add-row" onclick="applyGlobalMargin()">Apply to all drinks</button>
+</div>
+
 <details class="pantry" id="pantryBox">
   <summary>Pantry · bulk prices <span class="tw">▼</span></summary>
   <div class="pantry-inner">
@@ -204,18 +226,21 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;margin-top:20px}
 <div class="actions" style="margin-top:8px">
   <button onclick="doPrint()">🖨 Print</button>
   <button onclick="savePDF()">⬇ Save as PDF</button>
+  <button class="danger" onclick="resetAll()">↺ Reset</button>
 </div>
 
 <div id="printSheet"></div>
 
-<footer>Selling price ÷ margin math: price = cost ÷ (1 − margin). Data lives in this session — use Save backup to download it as a file.</footer>
+<footer>Selling price = cost ÷ (1 − margin). Edits save automatically in this browser · Reset restores the original recipes.</footer>
 <div class="toast" id="toast"></div>
 
 <script>
 const P = (n,d=2)=>'₱'+Number(n).toLocaleString('en-PH',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtA = v => String(+(+v).toFixed(2));
 
-// ---------- state (preloaded from the costing sheet) ----------
-let pantry = [
+// ---------- defaults (from the original costing sheet) ----------
+const DEFAULTS = {
+pantry:[
   {id:'puree',   name:'Peach purée',        qty:460,  unit:'g',  price:110.05},
   {id:'psyrup',  name:'Peach syrup',        qty:750,  unit:'ml', price:276},
   {id:'mcon',    name:'Mango concentrate',  qty:1000, unit:'ml', price:87.65},
@@ -228,28 +253,56 @@ let pantry = [
   {id:'lemon',   name:'Lemon',              qty:1,    unit:'pc', price:25},
   {id:'cup',     name:'Cup + lid 16oz',     qty:1,    unit:'pc', price:6},
   {id:'straw',   name:'Straw',              qty:1,    unit:'pc', price:0.65},
-];
-
-let recipes = [
-  {id:'pm-w', name:'Peach Mango', base:'Water base', grad:['#FFAA33','#FF7A59'], price:125, items:[
-    {ing:'puree',amt:45},{ing:'psyrup',amt:30},{ing:'mcon',amt:40},{ing:'water',amt:150},{ing:'corn',amt:10},{ing:'ice',amt:50},{ing:'cup',amt:1},{ing:'straw',amt:1}]},
-  {id:'pm-s', name:'Peach Mango', base:'Soda base', grad:['#FFC24D','#FF6B4A'], price:125, items:[
-    {ing:'puree',amt:45},{ing:'psyrup',amt:30},{ing:'mcon',amt:40},{ing:'sprite',amt:80},{ing:'ice',amt:50},{ing:'cup',amt:1},{ing:'straw',amt:1}]},
-  {id:'bp-w', name:'Tropical Butterfly Pea', base:'Water base', grad:['#7A6CF0','#372BA6'], price:100, items:[
-    {ing:'passion',amt:60},{ing:'bpea',amt:2},{ing:'corn',amt:15},{ing:'lemon',amt:0.125},{ing:'water',amt:150},{ing:'ice',amt:50},{ing:'cup',amt:1},{ing:'straw',amt:1}]},
-  {id:'bp-s', name:'Tropical Butterfly Pea', base:'Soda base', grad:['#8F7BFF','#4F46C8'], price:100, items:[
-    {ing:'passion',amt:60},{ing:'bpea',amt:2},{ing:'lemon',amt:0.125},{ing:'sprite',amt:80},{ing:'ice',amt:50},{ing:'cup',amt:1},{ing:'straw',amt:1}]},
-];
+],
+recipes:[
+  {id:'pm-w', name:'Peach Mango', base:'Water base', grad:['#FFAA33','#FF7A59'], size:16, price:125, items:[
+    {ing:'puree',amt:45},{ing:'psyrup',amt:30},{ing:'mcon',amt:40},{ing:'water',amt:150},{ing:'corn',amt:10},{ing:'ice',amt:50},{ing:'cup',amt:1,fixed:true},{ing:'straw',amt:1,fixed:true}]},
+  {id:'pm-s', name:'Peach Mango', base:'Soda base', grad:['#FFC24D','#FF6B4A'], size:16, price:125, items:[
+    {ing:'puree',amt:45},{ing:'psyrup',amt:30},{ing:'mcon',amt:40},{ing:'sprite',amt:80},{ing:'ice',amt:50},{ing:'cup',amt:1,fixed:true},{ing:'straw',amt:1,fixed:true}]},
+  {id:'bp-w', name:'Tropical Butterfly Pea', base:'Water base', grad:['#7A6CF0','#372BA6'], size:16, price:100, items:[
+    {ing:'passion',amt:60},{ing:'bpea',amt:2},{ing:'corn',amt:15},{ing:'lemon',amt:0.125},{ing:'water',amt:150},{ing:'ice',amt:50},{ing:'cup',amt:1,fixed:true},{ing:'straw',amt:1,fixed:true}]},
+  {id:'bp-s', name:'Tropical Butterfly Pea', base:'Soda base', grad:['#8F7BFF','#4F46C8'], size:16, price:100, items:[
+    {ing:'passion',amt:60},{ing:'bpea',amt:2},{ing:'lemon',amt:0.125},{ing:'sprite',amt:80},{ing:'ice',amt:50},{ing:'cup',amt:1,fixed:true},{ing:'straw',amt:1,fixed:true}]},
+]};
 
 const GRADS=[['#FFAA33','#FF7A59'],['#7A6CF0','#372BA6'],['#34C29A','#0E7B5E'],['#FF6BA8','#C4256F']];
+const deep = o => JSON.parse(JSON.stringify(o));
+
+let pantry=[], recipes=[], globalMargin=60;
+
+// ---------- persistence (Claude artifact storage OR browser localStorage) ----------
+const SKEY='sarisip-costing';
+async function saveState(){
+  const s=JSON.stringify({pantry,recipes,globalMargin});
+  try{ if(window.storage){ await window.storage.set(SKEY,s); return; } }catch(e){}
+  try{ localStorage.setItem(SKEY,s); }catch(e){}
+}
+async function loadState(){
+  let s=null;
+  try{ if(window.storage){ const r=await window.storage.get(SKEY); s=r&&r.value; } }catch(e){}
+  if(!s){ try{ s=localStorage.getItem(SKEY); }catch(e){} }
+  if(!s) return false;
+  try{
+    const d=JSON.parse(s);
+    if(d.pantry&&d.recipes){ pantry=d.pantry; recipes=d.recipes; globalMargin=d.globalMargin??60; return true; }
+  }catch(e){}
+  return false;
+}
+async function clearState(){
+  try{ if(window.storage) await window.storage.delete(SKEY); }catch(e){}
+  try{ localStorage.removeItem(SKEY); }catch(e){}
+}
+let _sv; function scheduleSave(){ clearTimeout(_sv); _sv=setTimeout(saveState,400); }
 
 // ---------- helpers ----------
 const ing = id => pantry.find(p=>p.id===id);
 const unitCost = p => p.qty>0 ? p.price/p.qty : 0;
-const rowCost = it => { const p=ing(it.ing); return p? unitCost(p)*it.amt : 0; };
-const recipeCost = r => r.items.reduce((s,it)=>s+rowCost(it),0);
+const scaleOf = r => (r.size>0?r.size:16)/16;
+const effAmt = (r,it) => it.fixed ? it.amt : it.amt*scaleOf(r);
+const rowCost = (r,it) => { const p=ing(it.ing); return p? unitCost(p)*effAmt(r,it) : 0; };
+const recipeCost = r => r.items.reduce((s,it)=>s+rowCost(r,it),0);
 
-function render(){ renderPantry(); renderRecipes(); renderStrip(); }
+function render(){ renderPantry(); renderRecipes(); renderStrip(); scheduleSave(); }
 
 // ---------- strip ----------
 function renderStrip(){
@@ -302,15 +355,17 @@ function renderRecipes(){
     const margin = r.price>0 ? (r.price-cost)/r.price : 0;
     const fillPct = r.price>0 ? Math.min(cost/r.price,1)*100 : 100;
     const over = r.price>0 && cost>r.price;
+    const sc = scaleOf(r);
     const rows = r.items.map((it,ii)=>{
-      const p=ing(it.ing); const c=rowCost(it);
-      const hot = c>10; // flag pricey line items
+      const p=ing(it.ing); const c=rowCost(r,it);
+      const hot = c>10;
       return `<tr class="rrow">
         <td><select onchange="upItem(${ri},${ii},'ing',this.value)">
           ${pantry.map(pp=>`<option value="${pp.id}" ${pp.id===it.ing?'selected':''}>${esc(pp.name)}</option>`).join('')}
         </select></td>
         <td style="white-space:nowrap;text-align:right">
-          <input type="number" class="num" value="${it.amt}" min="0" step="any" inputmode="decimal" onchange="upItem(${ri},${ii},'amt',+this.value)"><span class="unit-lbl">${p?p.unit:''}</span>
+          <button class="lockbtn" onclick="toggleFixed(${ri},${ii})" title="${it.fixed?'Fixed per cup (does not scale)':'Scales with portion size'}">${it.fixed?'🔒':'⇅'}</button>
+          <input type="number" class="num" value="${fmtA(effAmt(r,it))}" min="0" step="any" inputmode="decimal" onchange="upAmt(${ri},${ii},+this.value)"><span class="unit-lbl">${p?p.unit:''}</span>
         </td>
         <td class="cost-cell num ${hot?'hot':''}">${P(c)}</td>
         <td style="width:24px"><button class="del" onclick="delItem(${ri},${ii})" aria-label="Remove">×</button></td>
@@ -320,7 +375,10 @@ function renderRecipes(){
       <div class="card-head">
         <div style="flex:1">
           <h2><input type="text" value="${esc(r.name)}" onchange="upR(${ri},'name',this.value)"></h2>
-          <div class="base-tag">${esc(r.base)} · 16 oz</div>
+          <div class="base-tag">${esc(r.base)} · portion
+            <input type="number" class="num size-in" value="${r.size||16}" min="1" step="any" inputmode="decimal" onchange="upSize(${ri},+this.value)"> oz
+            ${sc!==1?`<span style="color:var(--pea)">· ×${fmtA(sc)} of 16 oz recipe</span>`:''}
+          </div>
         </div>
         <button class="del" onclick="delRecipe(${ri})" aria-label="Delete drink" style="font-size:18px">×</button>
       </div>
@@ -343,7 +401,7 @@ function renderRecipes(){
             <span class="val num margin-val ${over||margin<0.5?'bad':''}">${(margin*100).toFixed(1)}%${over?' — losing money!':''}</span></div>
           <div class="pline"><span class="lbl">Profit per cup</span><span class="val num">${P(r.price-cost)}</span></div>
           <div class="targets">
-            ${[60,65,70,75].map(m=>`<button onclick="setTarget(${ri},${m})">${m}% → ${P(Math.ceil(cost/(1-m/100)),0)}</button>`).join('')}
+            ${[55,60,65,70].map(m=>`<button onclick="setTarget(${ri},${m})">${m}% → ${P(Math.ceil(cost/(1-m/100)),0)}</button>`).join('')}
           </div>
         </div>
       </div>
@@ -352,20 +410,56 @@ function renderRecipes(){
 }
 function upR(ri,k,v){ recipes[ri][k]=v; render(); }
 function upItem(ri,ii,k,v){ recipes[ri].items[ii][k]=v; render(); }
+function upAmt(ri,ii,v){
+  const r=recipes[ri], it=r.items[ii];
+  it.amt = it.fixed ? v : v/scaleOf(r);
+  render();
+}
+function toggleFixed(ri,ii){
+  const it=recipes[ri].items[ii], r=recipes[ri];
+  if(it.fixed){ it.fixed=false; it.amt=it.amt/scaleOf(r); } // keep same effective amount
+  else{ it.amt=effAmt(r,it); it.fixed=true; }
+  render();
+}
+function upSize(ri,v){ recipes[ri].size = v>0? v : 16; render(); }
 function delItem(ri,ii){ recipes[ri].items.splice(ii,1); render(); }
 function addItem(ri){ recipes[ri].items.push({ing:pantry[0].id, amt:0}); render(); }
 function setTarget(ri,m){ recipes[ri].price = Math.ceil(recipeCost(recipes[ri])/(1-m/100)); render(); }
 function delRecipe(ri){ if(confirm('Delete '+recipes[ri].name+' ('+recipes[ri].base+')?')){ recipes.splice(ri,1); render(); } }
 function addRecipe(){
-  recipes.push({id:'r'+Date.now(), name:'New drink', base:'Water base', grad:GRADS[recipes.length%GRADS.length], price:100,
-    items:[{ing:'cup',amt:1},{ing:'ice',amt:50}]});
+  recipes.push({id:'r'+Date.now(), name:'New drink', base:'Water base', grad:GRADS[recipes.length%GRADS.length], size:16, price:100,
+    items:[{ing:'cup',amt:1,fixed:true},{ing:'straw',amt:1,fixed:true},{ing:'ice',amt:50}]});
   render();
   window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
 }
 
+// ---------- global margin ----------
+function applyGlobalMargin(){
+  const v=+document.getElementById('gmInput').value;
+  if(!(v>=0 && v<=90)){ toast('Margin must be between 0 and 90%'); return; }
+  globalMargin=v;
+  recipes.forEach(r=>{ r.price=Math.ceil(recipeCost(r)/(1-globalMargin/100)); });
+  render();
+  toast('All prices set at '+globalMargin+'% margin');
+}
+function applyMarginSilent(){
+  recipes.forEach(r=>{ r.price=Math.ceil(recipeCost(r)/(1-globalMargin/100)); });
+}
+
+// ---------- reset ----------
+async function resetAll(){
+  if(!confirm('Reset everything to the original recipes, prices and pantry?')) return;
+  pantry=deep(DEFAULTS.pantry); recipes=deep(DEFAULTS.recipes); globalMargin=60;
+  document.getElementById('gmInput').value=60;
+  applyMarginSilent();
+  await clearState();
+  render();
+  toast('Reset to defaults');
+}
+
 // ---------- backup ----------
 function copyData(){
-  const json=JSON.stringify({pantry,recipes},null,2);
+  const json=JSON.stringify({pantry,recipes,globalMargin},null,2);
   const blob=new Blob([json],{type:'text/plain'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -383,7 +477,11 @@ function loadData(){
     const r=new FileReader();
     r.onload=()=>{
       try{ const d=JSON.parse(r.result);
-        if(d.pantry&&d.recipes){ pantry=d.pantry; recipes=d.recipes; render(); toast('Backup loaded'); }
+        if(d.pantry&&d.recipes){
+          pantry=d.pantry; recipes=d.recipes;
+          if(d.globalMargin!=null){ globalMargin=d.globalMargin; document.getElementById('gmInput').value=globalMargin; }
+          render(); toast('Backup loaded');
+        }
         else throw 0;
       }catch{ toast('Could not read that backup file'); }
     };
@@ -395,10 +493,44 @@ function toast(msg){
   const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
   clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2400);
 }
-// ---------- print & PDF ----------
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+// ---------- print / PDF ----------
 function reportDate(){
   return new Date().toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'});
 }
+function buildPrintSheet(){
+  let html=`<h1>Beverage Costing Sheet</h1><div class="pdate">Sari-Sip · ${reportDate()}</div>`;
+
+  html+=`<h2>Summary</h2><table class="summary">
+    <tr><th>Drink</th><th class="r">Size</th><th class="r">Cost/cup</th><th class="r">Price</th><th class="r">Profit</th><th class="r">Margin</th></tr>`;
+  recipes.forEach(r=>{
+    const c=recipeCost(r), m=r.price>0?(r.price-c)/r.price*100:0;
+    html+=`<tr><td>${esc(r.name)} — ${esc(r.base)}</td><td class="r">${r.size||16} oz</td><td class="r">${P(c)}</td><td class="r">${P(r.price,0)}</td><td class="r">${P(r.price-c)}</td><td class="r">${m.toFixed(1)}%</td></tr>`;
+  });
+  html+=`</table>`;
+
+  recipes.forEach(r=>{
+    const c=recipeCost(r), m=r.price>0?(r.price-c)/r.price*100:0;
+    html+=`<div class="drink"><h2>${esc(r.name)} <span class="ptag">— ${esc(r.base)} · ${r.size||16} oz</span></h2>
+      <table><tr><th>Ingredient</th><th class="r">Amount</th><th class="r">Unit ₱</th><th class="r">Cost ₱</th></tr>`;
+    r.items.forEach(it=>{
+      const p=ing(it.ing); if(!p) return;
+      html+=`<tr><td>${esc(p.name)}${it.fixed?' *':''}</td><td class="r">${fmtA(effAmt(r,it))} ${p.unit}</td><td class="r">${unitCost(p).toFixed(unitCost(p)<0.1?4:2)}</td><td class="r">${rowCost(r,it).toFixed(2)}</td></tr>`;
+    });
+    html+=`<tr class="total"><td colspan="3">Cost per cup</td><td class="r">${P(c)}</td></tr></table>
+      <div class="pmeta">Selling price <b>${P(r.price,0)}</b> · Profit <b>${P(r.price-c)}</b> · Gross margin <b>${m.toFixed(1)}%</b></div></div>`;
+  });
+
+  html+=`<h2>Pantry — bulk prices</h2><table>
+    <tr><th>Ingredient</th><th class="r">Bulk qty</th><th class="r">Bulk price</th><th class="r">₱ per unit</th></tr>`;
+  pantry.forEach(p=>{
+    html+=`<tr><td>${esc(p.name)}</td><td class="r">${p.qty} ${p.unit}</td><td class="r">${P(p.price)}</td><td class="r">${unitCost(p).toFixed(unitCost(p)<0.1?4:2)}</td></tr>`;
+  });
+  html+=`</table><div class="pmeta" style="margin-top:8px">* fixed per cup — does not scale with portion size</div>`;
+  document.getElementById('printSheet').innerHTML=html;
+}
+function doPrint(){ buildPrintSheet(); window.print(); }
 function savePDF(){
   try{
     const { jsPDF } = window.jspdf;
@@ -411,16 +543,19 @@ function savePDF(){
     doc.text('Generated '+reportDate(), 14, y); y+=6;
     doc.setTextColor(0);
 
-    // pantry table
+    // summary
     doc.setFont('helvetica','bold'); doc.setFontSize(12);
-    doc.text('Pantry — bulk prices', 14, y+2);
+    doc.text('Summary', 14, y+2);
     doc.autoTable({
       startY: y+4,
-      head:[['Ingredient','Bulk qty','Bulk price','Unit cost']],
-      body: pantry.map(p=>[p.name, p.qty+' '+p.unit, php(p.price), unitCost(p).toFixed(unitCost(p)<0.1?4:2)+'/'+p.unit]),
+      head:[['Drink','Size','Cost/cup','Price','Profit','Margin']],
+      body: recipes.map(r=>{
+        const c=recipeCost(r), m=r.price>0?(r.price-c)/r.price*100:0;
+        return [r.name+' - '+r.base, (r.size||16)+' oz', php(c), php(r.price), php(r.price-c), m.toFixed(1)+'%'];
+      }),
       styles:{fontSize:8.5,cellPadding:1.6},
       headStyles:{fillColor:[79,70,200],fontSize:8},
-      columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'}},
+      columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'},5:{halign:'right'}},
       margin:{left:14,right:14}
     });
     y = doc.lastAutoTable.finalY + 8;
@@ -430,13 +565,13 @@ function savePDF(){
       const blockH = 14 + r.items.length*5 + 14;
       if(y + blockH > 280){ doc.addPage(); y = 16; }
       doc.setFont('helvetica','bold'); doc.setFontSize(12);
-      doc.text(r.name+' — '+r.base+' (16 oz)', 14, y+2);
+      doc.text(r.name+' — '+r.base+' ('+(r.size||16)+' oz)', 14, y+2);
       doc.autoTable({
         startY: y+4,
         head:[['Ingredient','Amount','Cost']],
         body: r.items.map(it=>{
           const p=ing(it.ing);
-          return [p?p.name:'?', it.amt+' '+(p?p.unit:''), php(rowCost(it))];
+          return [(p?p.name:'?')+(it.fixed?' *':''), fmtA(effAmt(r,it))+' '+(p?p.unit:''), php(rowCost(r,it))];
         }),
         styles:{fontSize:8.5,cellPadding:1.6},
         headStyles:{fillColor:[79,70,200],fontSize:8},
@@ -449,8 +584,21 @@ function savePDF(){
       y += 10;
     });
 
+    if(y + 20 + pantry.length*5 > 285){ doc.addPage(); y = 16; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(12);
+    doc.text('Pantry — bulk prices', 14, y+2);
+    doc.autoTable({
+      startY: y+4,
+      head:[['Ingredient','Bulk qty','Bulk price','Unit cost']],
+      body: pantry.map(p=>[p.name, p.qty+' '+p.unit, php(p.price), unitCost(p).toFixed(unitCost(p)<0.1?4:2)+'/'+p.unit]),
+      styles:{fontSize:8.5,cellPadding:1.6},
+      headStyles:{fillColor:[79,70,200],fontSize:8},
+      columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'}},
+      margin:{left:14,right:14}
+    });
+
     doc.setFontSize(7.5); doc.setTextColor(140);
-    doc.text('Selling price = cost / (1 - margin). Generated with Sari-Sip drink costing.', 14, 290);
+    doc.text('* fixed per cup. Selling price = cost / (1 - margin). Generated with Sari-Sip drink costing.', 14, 290);
     doc.save('beverage-costing-'+new Date().toISOString().slice(0,10)+'.pdf');
     toast('PDF downloaded');
   }catch(e){
@@ -459,44 +607,18 @@ function savePDF(){
   }
 }
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
-
-// ---------- print / PDF ----------
-function buildPrintSheet(){
-  const d=new Date().toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'});
-  let html=`<h1>Beverage Costing Sheet</h1><div class="pdate">Sari-Sip · ${d}</div>`;
-
-  html+=`<h2>Summary</h2><table class="summary">
-    <tr><th>Drink</th><th class="r">Cost/cup</th><th class="r">Price</th><th class="r">Profit</th><th class="r">Margin</th></tr>`;
-  recipes.forEach(r=>{
-    const c=recipeCost(r), m=r.price>0?(r.price-c)/r.price*100:0;
-    html+=`<tr><td>${esc(r.name)} — ${esc(r.base)}</td><td class="r">${P(c)}</td><td class="r">${P(r.price,0)}</td><td class="r">${P(r.price-c)}</td><td class="r">${m.toFixed(1)}%</td></tr>`;
-  });
-  html+=`</table>`;
-
-  recipes.forEach(r=>{
-    const c=recipeCost(r), m=r.price>0?(r.price-c)/r.price*100:0;
-    html+=`<div class="drink"><h2>${esc(r.name)} <span class="ptag">— ${esc(r.base)} · 16 oz</span></h2>
-      <table><tr><th>Ingredient</th><th class="r">Amount</th><th class="r">Unit ₱</th><th class="r">Cost ₱</th></tr>`;
-    r.items.forEach(it=>{
-      const p=ing(it.ing); if(!p) return;
-      html+=`<tr><td>${esc(p.name)}</td><td class="r">${it.amt} ${p.unit}</td><td class="r">${unitCost(p).toFixed(unitCost(p)<0.1?4:2)}</td><td class="r">${rowCost(it).toFixed(2)}</td></tr>`;
-    });
-    html+=`<tr class="total"><td colspan="3">Cost per cup</td><td class="r">${P(c)}</td></tr></table>
-      <div class="pmeta">Selling price <b>${P(r.price,0)}</b> · Profit <b>${P(r.price-c)}</b> · Gross margin <b>${m.toFixed(1)}%</b></div></div>`;
-  });
-
-  html+=`<h2>Pantry — bulk prices</h2><table>
-    <tr><th>Ingredient</th><th class="r">Bulk qty</th><th class="r">Bulk price</th><th class="r">₱ per unit</th></tr>`;
-  pantry.forEach(p=>{
-    html+=`<tr><td>${esc(p.name)}</td><td class="r">${p.qty} ${p.unit}</td><td class="r">${P(p.price)}</td><td class="r">${unitCost(p).toFixed(unitCost(p)<0.1?4:2)}</td></tr>`;
-  });
-  html+=`</table>`;
-  document.getElementById('printSheet').innerHTML=html;
-}
-function doPrint(){ buildPrintSheet(); window.print(); }
-
-render();
+// ---------- init ----------
+(async function init(){
+  const loaded = await loadState();
+  if(!loaded){
+    pantry=deep(DEFAULTS.pantry);
+    recipes=deep(DEFAULTS.recipes);
+    globalMargin=60;
+    applyMarginSilent();
+  }
+  document.getElementById('gmInput').value=globalMargin;
+  render();
+})();
 </script>
 </body>
 </html>
